@@ -119,8 +119,8 @@ This project is licensed under the **MIT License**. Feel free to use and modify 
 ### 📧 **Contact**
 If you have any questions, feel free to connect with me:
 
-- GitHub: [Your Username](https://github.com/your-username)
-- Email: your.email@example.com
+- GitHub: [WAIOKYERE](https://github.com/WAIOKYERE)
+- Email: waiokyere3@gmail.com
 
 ---
 
