@@ -1,0 +1,16 @@
+<%- include("partials/header.ejs") %>
+
+<h1>Wai Blog</h1>
+<a href="/create">➕ Create New Post</a>
+
+<% if (posts.length === 0) { %>
+<p>No blog posts yet. Be the first to write!</p>
+<% } else { %> <% posts.forEach((post, index) => { %>
+<div class="post">
+  <h2><%= post.title %></h2>
+  <p><%= post.content %></p>
+  <a href="/edit/<%= index %>">✏️ Edit</a>
+  <a href="/delete/<%= index %>">🗑️ Delete</a>
+</div>
+
+<% }); %> <% } %> <%- include("partials/footer.ejs") %>
