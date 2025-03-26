@@ -1,8 +1,4 @@
-Here's a professional and well-structured `README.md` for your **Blog Web Application** project. You can customize it further if needed!
-
----
-
-## 📘 **Blog Web Application**
+## 📘 **Wai's Web Application**
 
 A simple and responsive Blog web application built with **Node.js**, **Express.js**, and **EJS**. This project allows users to create, view, edit, and delete blog posts. Posts are stored temporarily in memory (no database is used).
 
@@ -119,7 +115,9 @@ This project is licensed under the **MIT License**. Feel free to use and modify 
 ### 📧 **Contact**
 If you have any questions, feel free to connect with me:
 
-- GitHub: [WAIOKYERE](https://github.com/WAIOKYERE)
+- GitHub: [WAIOKYERE](
+    
+)
 - Email: waiokyere3@gmail.com
 
 ---
