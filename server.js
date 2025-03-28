@@ -3,6 +3,43 @@ import bodyParser from "body-parser";
 import path from "path";
 import { fileURLToPath } from "url";
 
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+dotenv.config();
+
+// Connect to MongoDB
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('MongoDB connected'))
+  .catch((err) => console.error('MongoDB connection error:', err));
+
+
+
+  
+
+
+
+  import session from 'express-session';
+import authRoutes from './routes/authRoutes.js';
+import postRoutes from './routes/postRoutes.js';
+
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+}));
+
+app.use('/auth', authRoutes);
+app.use('/', postRoutes);
+
+
+
+
+
+
+
+
+
+
 const app = express();
 const PORT = 5000;
 
