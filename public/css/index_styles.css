@@ -1,11 +1,11 @@
 /* General Styling */
-body {
+/* body {
     font-family: Arial, sans-serif;
     margin: 40px auto;
-    max-width: 800px;
+    max-width: 100%;
     line-height: 1.6;
     background: #f9f9f9;
-}
+} */
 
 /* Headings */
 h1 {
@@ -33,15 +33,24 @@ form {
 input, textarea {
     padding: 10px;
     border: 1px solid #ddd;
-    border-radius: 4px;
+    width: 80%;
+    margin: auto;
 }
 
 button {
+    width: 25%;
+    margin: auto;
     padding: 10px 15px;
     background-color: #007BFF;
     color: white;
     border: none;
     cursor: pointer;
+    border-radius: 25px;
+    transition: background-color 0.3s ease;
+    font-size: 16px;
+    font-weight: bold;
+    text-align: center;
+    text-decoration: none;
 }
 
 button:hover {

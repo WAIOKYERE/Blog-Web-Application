@@ -1,16 +1,37 @@
 <%- include("partials/header.ejs") %>
 
-<h1>Wai Blog</h1>
-<a href="/create">➕ Create New Post</a>
+<div class="container mt-5" d-flex justify-content-center align-items-center" style="background-color: #d1b277;" height: 300px;">
 
-<% if (posts.length === 0) { %>
-<p>No blog posts yet. Be the first to write!</p>
-<% } else { %> <% posts.forEach((post, index) => { %>
-<div class="post">
-  <h2><%= post.title %></h2>
-  <p><%= post.content %></p>
-  <a href="/edit/<%= index %>">✏️ Edit</a>
-  <a href="/delete/<%= index %>">🗑️ Delete</a>
+<h1 class="text-center mb-4" style="color: #575757; font-size: 2.5rem; font-weight: bold;">Wai Blog</h1>
+
+<div class="text-center mb-4">
+  <a href="/create" class="btn btn-dark">➕ Create New Post</a>
 </div>
 
-<% }); %> <% } %> <%- include("partials/footer.ejs") %>
+<% if (posts.length === 0) { %>
+  <p class="text-center" style="color: #0a0a0a; font-size: 1.2rem;">No blog posts yet. Be the first to write!</p>
+<% } else { %>
+
+  <div class="d-flex flex-column align-items-center justify-content-center">
+
+    <% posts.forEach((post, index) => { %>
+      <div class="card mb-4" style="border: 2px solid #a9a4a47e; width: 80vw; max-width: 800px; background-color: #F5E6CC;">
+        <div class="card-body text-center">
+          <h2 class="card-title" style="color: #575757; font-size: 1.8rem; font-weight: bold;"><%= post.title %></h2>
+          <p class="card-text" style="color: #080202; font-size: 1.2rem;"><%= post.content %></p>
+          <div class="d-flex justify-content-around">
+            <a href="/edit/<%= index %>" class="btn btn-secondary">✏️ Edit</a>
+            <a href="/delete/<%= index %>" class="btn btn-danger">🗑️ Delete</a>
+          </div>
+        </div>
+      </div>
+    <% }); %>
+  
+  </div>
+  
+
+<% } %>
+
+</div>
+
+<%- include("partials/footer.ejs") %>

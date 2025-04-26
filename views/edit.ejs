@@ -3,7 +3,7 @@
 <h1>Edit Your Blog Post</h1>
 <form action="/edit/<%= id %>" method="POST">
   <input type="text" name="title" value="<%= post.title %>" required />
-  <textarea name="content" required><%= post.content %></textarea>
+  <textarea style="height: 300px;" name="content" required><%= post.content %></textarea>
   <button type="submit">Update Post</button>
 </form>
 <a href="/">⬅️ Back to Home</a>
