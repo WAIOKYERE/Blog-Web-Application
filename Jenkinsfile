@@ -3,7 +3,8 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = 'blog-web-app:latest'
-        EMAIL_RECIPIENTS = 'waiokyere3@outlook.com' 
+        EMAIL_RECIPIENTS = 'waiokyere3@outlook.com' // replace with real email
+    }
 
     stages {
         stage('Pre-Setup') {
@@ -14,7 +15,7 @@ pipeline {
                 failure {
                     mail to: "${EMAIL_RECIPIENTS}",
                          subject: "❌ Blog Web App: Pre-Setup Failed",
-                         body: "The pipeline failed at the Pre-Setup stage."
+                         body: "The pipeline failed during the Pre-Setup stage."
                 }
             }
         }
@@ -35,7 +36,7 @@ pipeline {
                 failure {
                     mail to: "${EMAIL_RECIPIENTS}",
                          subject: "❌ Blog Web App: Checkout Failed",
-                         body: "The pipeline failed at the Checkout stage."
+                         body: "The pipeline failed during the Checkout stage."
                 }
             }
         }
@@ -55,18 +56,18 @@ pipeline {
         stage('Deploy') {
             steps {
                 echo 'Deploying application...'
-                // Add deployment logic here
+                // Actual deployment steps go here
             }
             post {
                 success {
                     mail to: "${EMAIL_RECIPIENTS}",
                          subject: "✅ Blog Web App: Deployment Successful",
-                         body: "The application was deployed successfully."
+                         body: "The application was successfully deployed."
                 }
                 failure {
                     mail to: "${EMAIL_RECIPIENTS}",
                          subject: "❌ Blog Web App: Deployment Failed",
-                         body: "The deployment stage failed. Please check Jenkins logs for details."
+                         body: "Deployment failed. Please check Jenkins logs for details."
                 }
             }
         }
