@@ -1,5 +1,10 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'docker:latest'
+            args '-v /var/run/docker.sock:/var/run/docker.sock'
+        }
+    }
 
     environment {
         DOCKER_IMAGE = 'blog-web-app:latest'
@@ -23,7 +28,6 @@ pipeline {
         }
         stage('Deploy') {
             steps {
-                // Replace with your deployment steps
                 echo 'Deploying application...'
             }
         }
