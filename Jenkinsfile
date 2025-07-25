@@ -3,19 +3,24 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = 'blog-web-app:latest'
-    }
+        EMAIL_RECIPIENTS = 'waiokyere3@outlook.com' 
 
     stages {
         stage('Pre-Setup') {
             steps {
-                // Increase Git buffer to avoid fetch failure
                 sh 'git config --global http.postBuffer 524288000'
+            }
+            post {
+                failure {
+                    mail to: "${EMAIL_RECIPIENTS}",
+                         subject: "❌ Blog Web App: Pre-Setup Failed",
+                         body: "The pipeline failed at the Pre-Setup stage."
+                }
             }
         }
 
         stage('Checkout') {
             steps {
-                // Shallow clone to avoid large history and potential network issues
                 checkout([
                     $class: 'GitSCM',
                     branches: [[name: '*/main']],
@@ -25,6 +30,13 @@ pipeline {
                     ]],
                     extensions: [[$class: 'CloneOption', shallow: true, depth: 1]]
                 ])
+            }
+            post {
+                failure {
+                    mail to: "${EMAIL_RECIPIENTS}",
+                         subject: "❌ Blog Web App: Checkout Failed",
+                         body: "The pipeline failed at the Checkout stage."
+                }
             }
         }
 
@@ -43,21 +55,26 @@ pipeline {
         stage('Deploy') {
             steps {
                 echo 'Deploying application...'
-                // Add your real deploy logic here
+                // Add deployment logic here
+            }
+            post {
+                success {
+                    mail to: "${EMAIL_RECIPIENTS}",
+                         subject: "✅ Blog Web App: Deployment Successful",
+                         body: "The application was deployed successfully."
+                }
+                failure {
+                    mail to: "${EMAIL_RECIPIENTS}",
+                         subject: "❌ Blog Web App: Deployment Failed",
+                         body: "The deployment stage failed. Please check Jenkins logs for details."
+                }
             }
         }
     }
 
-   post {
-    always {
-        cleanWs()
+    post {
+        always {
+            cleanWs()
+        }
     }
-    success {
-        echo '✅ Pipeline completed successfully.'
-    }
-    failure {
-        echo '❌ Pipeline failed.'
-    }
-}
-
 }
