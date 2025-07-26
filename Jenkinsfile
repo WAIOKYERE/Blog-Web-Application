@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = 'blog-web-app:latest'
-        EMAIL_RECIPIENTS = 'waiokyere3@outlook.com' // replace with real email
+        EMAIL_RECIPIENTS = 'you@example.com'
     }
 
     stages {
@@ -11,17 +11,11 @@ pipeline {
             steps {
                 sh 'git config --global http.postBuffer 524288000'
             }
-            post {
-                failure {
-                    mail to: "${EMAIL_RECIPIENTS}",
-                         subject: "❌ Blog Web App: Pre-Setup Failed",
-                         body: "The pipeline failed during the Pre-Setup stage."
-                }
-            }
         }
 
         stage('Checkout') {
             steps {
+                sh 'git config --global http.postBuffer 524288000'
                 checkout([
                     $class: 'GitSCM',
                     branches: [[name: '*/main']],
@@ -35,8 +29,8 @@ pipeline {
             post {
                 failure {
                     mail to: "${EMAIL_RECIPIENTS}",
-                         subject: "❌ Blog Web App: Checkout Failed",
-                         body: "The pipeline failed during the Checkout stage."
+                         subject: "❌ Checkout Failed",
+                         body: "Checkout failed. Please review logs."
                 }
             }
         }
@@ -55,19 +49,18 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                echo 'Deploying application...'
-                // Actual deployment steps go here
+                echo 'Deploying...'
             }
             post {
                 success {
                     mail to: "${EMAIL_RECIPIENTS}",
-                         subject: "✅ Blog Web App: Deployment Successful",
-                         body: "The application was successfully deployed."
+                         subject: "✅ Deploy Successful",
+                         body: "Deployment completed successfully."
                 }
                 failure {
                     mail to: "${EMAIL_RECIPIENTS}",
-                         subject: "❌ Blog Web App: Deployment Failed",
-                         body: "Deployment failed. Please check Jenkins logs for details."
+                         subject: "❌ Deploy Failed",
+                         body: "Deployment failed. Check Jenkins logs."
                 }
             }
         }
@@ -75,7 +68,9 @@ pipeline {
 
     post {
         always {
-            cleanWs()
+            node {
+                cleanWs()
+            }
         }
     }
 }
