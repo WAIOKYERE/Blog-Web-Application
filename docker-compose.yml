@@ -1,0 +1,8 @@
+jenkins:
+  image: jenkins/jenkins:lts
+  user: root
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - jenkins_home:/var/jenkins_home
+  environment:
+    - DOCKER_HOST=unix:///var/run/docker.sock
