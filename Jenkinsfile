@@ -2,7 +2,6 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'blog-web-app:latest'
         EMAIL_RECIPIENTS = 'waiokyere3@outlook.com'
     }
 
@@ -37,7 +36,7 @@ pipeline {
 
         stage('Build') {
             steps {
-                sh 'docker build -t $DOCKER_IMAGE .'
+                sh 'docker-compose build'
             }
             post {
                 failure {
@@ -50,13 +49,21 @@ pipeline {
 
         stage('Test') {
             steps {
-                sh 'docker run --rm $DOCKER_IMAGE npm test'
+                sh 'docker-compose run --rm app npm test'
+            }
+            post {
+                failure {
+                    mail to: "${EMAIL_RECIPIENTS}",
+                         subject: "❌ Test Failed",
+                         body: "Tests failed. Please check logs."
+                }
             }
         }
 
         stage('Deploy') {
             steps {
                 echo 'Deploying...'
+                sh 'docker-compose up -d'
             }
             post {
                 success {
@@ -75,6 +82,7 @@ pipeline {
 
     post {
         always {
+            sh 'docker-compose down || true'
             cleanWs()
         }
     }
