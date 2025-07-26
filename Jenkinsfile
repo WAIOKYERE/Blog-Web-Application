@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = 'blog-web-app:latest'
-        EMAIL_RECIPIENTS = 'you@example.com'
+        EMAIL_RECIPIENTS = 'waiokyere3@outlook.com'
     }
 
     stages {
