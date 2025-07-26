@@ -30,7 +30,7 @@ pipeline {
                 failure {
                     mail to: "${EMAIL_RECIPIENTS}",
                          subject: "❌ Checkout Failed",
-                         body: "Checkout failed. Please review logs."
+                         body: "Checkout failed. Please review the Jenkins logs."
                 }
             }
         }
@@ -38,6 +38,13 @@ pipeline {
         stage('Build') {
             steps {
                 sh 'docker build -t $DOCKER_IMAGE .'
+            }
+            post {
+                failure {
+                    mail to: "${EMAIL_RECIPIENTS}",
+                         subject: "❌ Build Failed",
+                         body: "Build failed after checkout. Check Jenkins logs."
+                }
             }
         }
 
@@ -68,9 +75,7 @@ pipeline {
 
     post {
         always {
-            node {
-                cleanWs()
-            }
+            cleanWs()
         }
     }
 }
