@@ -1,63 +1,30 @@
 pipeline {
-    agent any
-
-    environment {
-        DOCKER_IMAGE = 'blog-web-app:latest'
-        EMAIL_RECIPIENTS = 'waiokyere3@outlook.com'
+    agent {
+        label 'kubeagent'
     }
 
     stages {
-        stage('Pre-Setup') {
+        stage('Code Checkout') {
             steps {
-                sh 'git config --global http.postBuffer 524288000'
+                sh "echo 'Checkout Completed'"
             }
         }
-
         stage('Build') {
             steps {
-                sh 'docker-compose build'
-            }
-            post {
-                failure {
-                    mail to: "${EMAIL_RECIPIENTS}",
-                         subject: "❌ Build Failed",
-                         body: "Build failed. Check Jenkins logs."
-                }
-            }
-        }
-
-        stage('Test') {
-            steps {
-                sh 'docker-compose run --rm app npm test'
-            }
-        }
-
-        stage('Deploy') {
-            steps {
-                echo 'Deploying...'
-                // Add your deploy command here (e.g., docker-compose up -d)
-            }
-            post {
-                success {
-                    mail to: "${EMAIL_RECIPIENTS}",
-                         subject: "✅ Deploy Successful",
-                         body: "Deployment completed successfully."
-                }
-                failure {
-                    mail to: "${EMAIL_RECIPIENTS}",
-                         subject: "❌ Deploy Failed",
-                         body: "Deployment failed. Check Jenkins logs."
-                }
+                sh "echo 'Build Completed'"
             }
         }
     }
-
     post {
         always {
-            // Stop and clean up containers
-            sh 'docker-compose down || true'
-            cleanWs()
+            mail to: 'okyerewai3@gmail.com',
+                 subject: "Jenkins Build Notification: ${currentBuild.fullDisplayName}",
+                 body: """\
+                 Build Status: ${currentBuild.currentResult}
+                 Project: ${env.JOB_NAME}
+                 Build Number: ${env.BUILD_NUMBER}
+                 Build URL: ${env.BUILD_URL}
+                 """
         }
     }
 }
-

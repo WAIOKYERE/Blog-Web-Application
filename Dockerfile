@@ -1,18 +1,18 @@
-# Use official Node.js image
-FROM node:18-alpine
+# Dockerfile
+FROM jenkins/jenkins:lts
 
-# Create app directory
-WORKDIR /app
+USER root
 
-# Copy package files and install dependencies
-COPY package*.json ./
-RUN npm install
+# Install Docker CLI and Docker Compose plugin
+RUN apt-get update && \
+    apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release && \
+    curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null && \
+    apt-get update && \
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Copy the rest of the code
-COPY . .
+# Add Jenkins user to Docker group
+RUN groupadd docker && usermod -aG docker jenkins
 
-# Expose the app port
-EXPOSE 3000
-
-# Start the app
-CMD ["npm", "start"]
+USER jenkins
