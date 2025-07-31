@@ -1,30 +1,49 @@
 pipeline {
-    agent {
-        label 'kubeagent'
+    agent any
+
+    environment {
+        IMAGE_NAME = 'blog-app'
     }
 
     stages {
-        stage('Code Checkout') {
+   
+        stage('Install Dependencies') {
             steps {
-                sh "echo 'Checkout Completed'"
+                sh 'npm install'
             }
         }
-        stage('Build') {
+
+        stage('Test') {
             steps {
-                sh "echo 'Build Completed'"
+                sh 'npm test || echo "No test script defined"'
             }
         }
-    }
-    post {
-        always {
-            mail to: 'okyerewai3@gmail.com',
-                 subject: "Jenkins Build Notification: ${currentBuild.fullDisplayName}",
-                 body: """\
-                 Build Status: ${currentBuild.currentResult}
-                 Project: ${env.JOB_NAME}
-                 Build Number: ${env.BUILD_NUMBER}
-                 Build URL: ${env.BUILD_URL}
-                 """
+
+        stage('Build Docker Image') {
+            steps {
+                sh "docker build -t $IMAGE_NAME ."
+            }
+        }
+
+        stage('Push to DockerHub') {
+            when {
+                branch 'main'
+            }
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh '''
+                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                        docker tag $IMAGE_NAME $DOCKER_USER/$IMAGE_NAME:latest
+                        docker push $DOCKER_USER/$IMAGE_NAME:latest
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy (Optional)') {
+            steps {
+                echo 'Deploy logic goes here (e.g., SSH to server or trigger remote script)'
+            }
         }
     }
 }
