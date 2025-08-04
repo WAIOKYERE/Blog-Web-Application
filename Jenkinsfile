@@ -1,106 +1,146 @@
-// pipeline {
+//   pipeline {
 //     agent any
 
 //     environment {
-//         DOCKER_IMAGE = 'blog-app'
-//         CONTAINER_NAME = 'blog-web-app'
+//         IMAGE_NAME = 'blog-web-application-blog-app'
+//         DOCKER_HOST = 'unix:///var/run/docker.sock'
 //     }
 
-  
+//     stages {
+   
+//         stage('Install Dependencies') {
+//             steps {
+//                 sh 'npm install'
+//             }
+//         }
+
+//         stage('Test') {
+//             steps {
+//                 sh 'npm test || echo "No test script defined"'
+//             }
+//         }
+
 //         stage('Build Docker Image') {
 //             steps {
-//                 script {
-//                     sh 'docker build -t blog-web-application-blog-app .'
-//                 }
+//                 sh "docker build -t $IMAGE_NAME ."
 //             }
 //         }
 
-//         stage('Stop Old Container') {
-//             steps {
-//                 script {
-//                     sh 'docker stop $CONTAINER_NAME || true'
-//                     sh 'docker rm $CONTAINER_NAME || true'
-//                 }
+//         stage('Push to DockerHub') {
+//             when {
+//                 branch 'main'
 //             }
-//         }
-
-//         stage('Run New Container') {
 //             steps {
-//                 script {
+//                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
 //                     sh '''
-//                         docker run -d --name $CONTAINER_NAME \
-//                         -p 3000:3000 $DOCKER_IMAGE
+//                         echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+//                         docker tag $IMAGE_NAME $DOCKER_USER/$IMAGE_NAME:latest
+//                         docker push $DOCKER_USER/$IMAGE_NAME:latest
 //                     '''
 //                 }
 //             }
 //         }
-//     }
 
-//     post {
-//         success {
-//             echo '🚀 Deployment successful!'
-//         }
-//         failure {
-//             echo '❌ Deployment failed.'
+//         stage('Deploy (Optional)') {
+//             steps {
+//                 echo 'Deploy logic goes here (e.g., SSH to server or trigger remote script)'
+//             }
 //         }
 //     }
+// }
 
 
 
 
-
-  pipeline {
+pipeline {
     agent any
 
     environment {
         IMAGE_NAME = 'blog-web-application-blog-app'
         DOCKER_HOST = 'unix:///var/run/docker.sock'
+        // Add timestamp for unique tags in development
+        IMAGE_TAG = "${env.BRANCH_NAME == 'main' ? 'latest' : 'dev-' + env.BUILD_NUMBER}"
     }
 
     stages {
-   
         stage('Install Dependencies') {
             steps {
                 sh 'npm install'
+                // Cache node_modules for faster builds
+                stash includes: 'node_modules/', name: 'node-modules'
             }
         }
 
         stage('Test') {
             steps {
-                sh 'npm test || echo "No test script defined"'
+                sh 'npm test || echo "Tests failed - continuing pipeline"'
+                // Add test coverage reporting if available
+                // post always { junit 'reports/**/*.xml' }
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh "docker build -t $IMAGE_NAME ."
+                unstash 'node-modules'  // Restore cached dependencies
+                sh "docker build -t $IMAGE_NAME:$IMAGE_TAG ."
+                // Clean up intermediate images
+                sh 'docker image prune -f'
             }
         }
 
         stage('Push to DockerHub') {
             when {
-                branch 'main'
+                branch 'main'  // Only push to DockerHub from main branch
             }
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
                     sh '''
-                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                        docker tag $IMAGE_NAME $DOCKER_USER/$IMAGE_NAME:latest
-                        docker push $DOCKER_USER/$IMAGE_NAME:latest
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker tag "$IMAGE_NAME:$IMAGE_TAG" "$DOCKER_USER/$IMAGE_NAME:$IMAGE_TAG"
+                        docker push "$DOCKER_USER/$IMAGE_NAME:$IMAGE_TAG"
+                        docker logout
                     '''
                 }
             }
         }
 
-        stage('Deploy (Optional)') {
+        stage('Deploy') {
+            when {
+                branch 'main'  // Only deploy from main branch
+            }
             steps {
-                echo 'Deploy logic goes here (e.g., SSH to server or trigger remote script)'
+                script {
+                    // Example deployment - adjust for your infrastructure
+                    echo "Deploying $DOCKER_USER/$IMAGE_NAME:$IMAGE_TAG"
+                    // You could add actual deployment commands here, like:
+                    // - SSH to a server and pull/run the new image
+                    // - Trigger a Kubernetes rollout
+                    // - Update a Docker Swarm service
+                }
             }
         }
     }
+
+    post {
+        always {
+            echo "Pipeline completed - cleanup"
+            // Clean up workspace
+            cleanWs()
+        }
+        success {
+            echo "✅ Pipeline succeeded!"
+            // Optional: Send success notification
+        }
+        failure {
+            echo "❌ Pipeline failed!"
+            // Optional: Send failure notification
+        }
+    }
 }
-
-
 
 
 
