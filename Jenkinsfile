@@ -3,8 +3,8 @@
     agent any
 
     environment {
-        IMAGE_NAME = 'blog-app'
-        DOCKER_HOST = 'unix:///var/run/docker.sock' // ✅ this is the fix
+        IMAGE_NAME = 'blog-web-application-blog-app'
+        DOCKER_HOST = 'unix:///var/run/docker.sock'
     }
 
     stages {
