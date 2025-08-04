@@ -6,13 +6,6 @@ pipeline {
         CONTAINER_NAME = 'blog-web-app'
     }
 
-    stages {
-        stage('Checkout') {
-            steps {
-                git 'https://github.com/YOUR_USERNAME/YOUR_REPO.git' // or use local path
-            }
-        }
-
         stage('Build Docker Image') {
             steps {
                 script {
