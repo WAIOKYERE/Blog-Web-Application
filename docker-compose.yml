@@ -1,0 +1,11 @@
+version: '3.8'  # Compose file format version
+services:       # Defines the different containers (services) you need
+  app:          # Your Node.js application service
+    build: .    # Builds from the Dockerfile in current directory
+    ports:
+      - "3000:5000"  # Maps host:container ports
+    environment:
+      - NODE_ENV=production  # Sets environment variables
+    volumes:
+      - ./:/app        # Mounts current directory to /app in container
+      - /app/node_modules  # Special handling for node_modules
