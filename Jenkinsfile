@@ -4,9 +4,11 @@ pipeline {
     stages {
         stage('Build') {
             steps {
-                echo 'Building...'
+                sh 'npm install'  // Install dependencies
+                sh 'npm run build' // If you have a build step
             }
         }
+
 
         stage('Test') {
             steps {
