@@ -1,20 +1,40 @@
 pipeline {
     agent any
+
     stages {
-        stage('Check Docker') {
+        stage('Build') {
             steps {
-                sh 'docker --version'
-                sh 'docker pull node:18-alpine'
-                sh 'docker run --rm node:18-alpine node -v'
+                echo 'Building...'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo 'Testing...'
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                
+                echo 'Deploying...'
             }
         }
     }
 }
 
-
-
-
-
+    post {
+        always {
+            echo 'Cleaning up...'
+        }
+        success {
+            echo 'Build succeeded!'
+        }
+        failure {
+            echo 'Build failed!'
+        }
+    }
+}
 
 
 // pipeline {
