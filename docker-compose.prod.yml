@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  app:
+    image: your-registry/blog-web-app:${TAG:-latest}
+    ports:
+      - "6000:5000"
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=mongodb
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:5.0
+    volumes:
+      - mongo-data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=secret
+    restart: unless-stopped
+
+volumes:
+  mongo-data:
