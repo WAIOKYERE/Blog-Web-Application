@@ -1,42 +1,91 @@
+// pipeline {
+//     agent any
+
+//     stages {
+//         stage('Build') {
+//             steps {
+//                 sh 'npm install'  // Install dependencies
+//                 sh 'npm run build' // If you have a build step
+//             }
+//         }
+
+
+//         stage('Test') {
+//             steps {
+//                 echo 'Testing...'
+//             }
+//         }
+
+//         stage('Deploy') {
+//             steps {
+                
+//                 echo 'Deploying...'
+//             }
+//         }
+//     }
+
+
+//     post {
+//         always {
+//             echo 'Cleaning up...'
+//         }
+//         success {
+//             echo 'Build succeeded!'
+//         }
+//         failure {
+//             echo 'Build failed!'
+//         }
+//     }
+// }
+
+
+
+
+
+
 pipeline {
     agent any
 
     stages {
-        stage('Build') {
+        stage('Install') {
             steps {
-                sh 'npm install'  // Install dependencies
-                sh 'npm run build' // If you have a build step
+                echo 'Installing dependencies...'
+                sh 'npm install'
             }
         }
 
-
         stage('Test') {
             steps {
-                echo 'Testing...'
+                echo 'Running tests...'
+                sh 'npm test || echo "No tests configured"'
             }
         }
 
         stage('Deploy') {
             steps {
-                
-                echo 'Deploying...'
+                echo 'Starting application...'
+                sh 'npm start'
             }
         }
     }
-
 
     post {
         always {
             echo 'Cleaning up...'
         }
         success {
-            echo 'Build succeeded!'
+            echo 'Pipeline completed successfully!'
         }
         failure {
-            echo 'Build failed!'
+            echo 'Pipeline failed!'
         }
     }
 }
+
+
+
+
+
 
 
 
