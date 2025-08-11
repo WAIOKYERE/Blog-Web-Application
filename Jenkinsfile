@@ -113,25 +113,29 @@ pipeline {
             steps {
                 echo 'Running tests...'
                 script {
-                    def testResult = sh(
-                        script: '''
-                            # Check if test scripts exist and run them
-                            if npm run | grep -q "test:coverage"; then
-                                npm run test:coverage
-                            elif npm run | grep -q "test"; then
-                                npm run test
-                            else
-                                echo "No test scripts configured"
-                                exit 0
-                            fi
-                        ''',
-                        returnStatus: true
-                    )
+                    // First check what the test script contains
+                    def packageContent = readFile('package.json')
                     
-                    if (testResult != 0) {
-                        echo "Tests failed with exit code: ${testResult}"
-                        currentBuild.result = 'FAILURE'
-                        error "Test stage failed"
+                    // Check if it's the default npm test script that always fails
+                    if (packageContent.contains('"test": "echo \\"Error: no test specified\\" && exit 1"')) {
+                        echo "Default npm test script detected (no actual tests configured), skipping tests..."
+                    } else {
+                        // There are real tests configured, so run them
+                        def testResult = sh(
+                            script: '''
+                                # Run the actual test command
+                                npm run test
+                            ''',
+                            returnStatus: true
+                        )
+                        
+                        if (testResult != 0) {
+                            echo "Tests failed with exit code: ${testResult}"
+                            currentBuild.result = 'FAILURE'
+                            error "Test stage failed"
+                        } else {
+                            echo "All tests passed successfully!"
+                        }
                     }
                 }
             }
@@ -326,7 +330,6 @@ pipeline {
         }
     }
 }
-
 
 
 
