@@ -4,11 +4,12 @@ pipeline {
     environment {
         NODE_ENV = 'production'
         NPM_CONFIG_CACHE = '/tmp/.npm'
+        // Add other environment variables as needed
     }
     
     options {
-        timeout(time: 20, unit: 'MINUTES')
-        retry(1)
+        timeout(time: 30, unit: 'MINUTES')
+        retry(2)
         timestamps()
         buildDiscarder(logRotator(numToKeepStr: '10'))
     }
@@ -17,6 +18,11 @@ pipeline {
         stage('Checkout & Setup') {
             steps {
                 echo 'Setting up workspace...'
+                // Clean workspace if needed
+                cleanWs()
+                // Checkout code (if not using multibranch pipeline)
+                checkout scm
+                
                 // Verify Node.js and npm versions
                 sh '''
                     node --version
@@ -25,14 +31,20 @@ pipeline {
             }
         }
         
-        stage('Install Dependencies') {
+        stage('Cache & Install Dependencies') {
             steps {
                 echo 'Installing dependencies...'
                 script {
+                    // Cache node_modules for faster builds
                     if (fileExists('package-lock.json')) {
-                        sh 'npm ci --cache ${NPM_CONFIG_CACHE}'
+                        sh '''
+                            # Use npm ci for faster, reliable installs in CI
+                            npm ci --cache ${NPM_CONFIG_CACHE}
+                        '''
                     } else {
-                        sh 'npm install --cache ${NPM_CONFIG_CACHE}'
+                        sh '''
+                            npm install --cache ${NPM_CONFIG_CACHE}
+                        '''
                     }
                 }
             }
@@ -61,10 +73,9 @@ pipeline {
                     steps {
                         echo 'Running security audit...'
                         script {
-                            // Run audit but don't fail the build for low severity issues
                             def result = sh(script: 'npm audit --audit-level=moderate', returnStatus: true)
                             if (result != 0) {
-                                echo "Security vulnerabilities found. Consider running 'npm audit fix'"
+                                echo "Security audit found issues. Consider running 'npm audit fix'"
                                 currentBuild.result = 'UNSTABLE'
                             }
                         }
@@ -77,9 +88,9 @@ pipeline {
             steps {
                 echo 'Checking for build script...'
                 script {
-                    // Check if build script exists in package.json
+                    // Fixed: Use shell command instead of readJSON to check for build script
                     def buildScriptExists = sh(
-                        script: 'npm run | grep -q "^  build$"',
+                        script: 'npm run | grep -q "^  build"',
                         returnStatus: true
                     ) == 0
                     
@@ -92,7 +103,7 @@ pipeline {
                             archiveArtifacts artifacts: 'dist/**/*,build/**/*', allowEmptyArchive: true
                         }
                     } else {
-                        echo 'No build script found in package.json, skipping build stage'
+                        echo 'No build script found in package.json, skipping build'
                     }
                 }
             }
@@ -102,53 +113,59 @@ pipeline {
             steps {
                 echo 'Running tests...'
                 script {
-                    // Check if test script exists
-                    def testScriptExists = sh(
-                        script: 'npm run | grep -q "^  test"',
+                    def testResult = sh(
+                        script: '''
+                            # Check if test scripts exist and run them
+                            if npm run | grep -q "test:coverage"; then
+                                npm run test:coverage
+                            elif npm run | grep -q "test"; then
+                                npm run test
+                            else
+                                echo "No test scripts configured"
+                                exit 0
+                            fi
+                        ''',
                         returnStatus: true
-                    ) == 0
+                    )
                     
-                    if (testScriptExists) {
-                        def testResult = sh(
-                            script: 'npm test',
-                            returnStatus: true
-                        )
-                        
-                        if (testResult != 0) {
-                            echo "Tests failed with exit code: ${testResult}"
-                            currentBuild.result = 'FAILURE'
-                            error "Test stage failed"
-                        } else {
-                            echo 'All tests passed successfully'
-                        }
-                    } else {
-                        echo 'No test script configured in package.json'
+                    if (testResult != 0) {
+                        echo "Tests failed with exit code: ${testResult}"
+                        currentBuild.result = 'FAILURE'
+                        error "Test stage failed"
                     }
                 }
             }
             post {
                 always {
-                    // Publish test results if they exist (common test result locations)
+                    // Publish test results if they exist
                     script {
-                        def testResultsFound = false
-                        
-                        // Check for common test result file patterns
-                        def testResultFiles = [
-                            'test-results.xml',
-                            'junit.xml',
-                            'coverage/lcov.info',
-                            'coverage/index.html'
-                        ]
-                        
-                        testResultFiles.each { file ->
-                            if (fileExists(file)) {
-                                testResultsFound = true
+                        // Check for coverage reports
+                        if (fileExists('coverage/lcov.info')) {
+                            echo 'Coverage report found'
+                            // Only use publishHTML if the plugin is available
+                            try {
+                                publishHTML([
+                                    allowMissing: false,
+                                    alwaysLinkToLastBuild: true,
+                                    keepAll: true,
+                                    reportDir: 'coverage',
+                                    reportFiles: 'index.html',
+                                    reportName: 'Coverage Report'
+                                ])
+                            } catch (Exception e) {
+                                echo "HTML Publisher not available: ${e.getMessage()}"
+                                archiveArtifacts artifacts: 'coverage/**/*', allowEmptyArchive: true
                             }
                         }
                         
-                        if (testResultsFound) {
-                            echo 'Test results found and would be published'
-                            // Note: Actual publishing requires specific plugins
+                        // JUnit test results
+                        if (fileExists('test-results.xml')) {
+                            try {
+                                junit 'test-results.xml'
+                            } catch (Exception e) {
+                                echo "JUnit plugin not available: ${e.getMessage()}"
+                                archiveArtifacts artifacts: 'test-results.xml', allowEmptyArchive: true
+                            }
                         }
                     }
                 }
@@ -166,32 +183,39 @@ pipeline {
             steps {
                 echo 'Deploying application...'
                 script {
+                    // Add deployment confirmation for production
                     if (env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'master') {
-                        // Production deployment with manual approval
                         timeout(time: 5, unit: 'MINUTES') {
                             input message: 'Deploy to production?', ok: 'Deploy',
                                   submitterParameter: 'DEPLOYER'
                         }
-                        echo "Production deployment approved by: ${env.DEPLOYER}"
-                        
-                        echo 'Deploying to production environment...'
-                        // Add your actual production deployment commands here
+                        echo "Deployment approved by: ${env.DEPLOYER}"
+                    }
+                    
+                    // Different deployment strategies based on environment
+                    if (env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'master') {
+                        // Production deployment
+                        echo 'Deploying to production...'
                         sh '''
-                            echo "Production deployment commands would go here"
-                            # Examples:
-                            # docker build -t myapp:latest .
+                            # Add your production deployment commands here
+                            # For example: docker build, push to registry, deploy to k8s
+                            echo "Production deployment would happen here"
+                            
+                            # Example commands (uncomment and modify as needed):
+                            # docker build -t myapp:$(git rev-parse --short HEAD) .
+                            # docker tag myapp:$(git rev-parse --short HEAD) myapp:latest
                             # docker push myregistry/myapp:latest
-                            # kubectl apply -f k8s/production/
                         '''
-                        
                     } else if (env.BRANCH_NAME == 'develop') {
-                        echo 'Deploying to staging environment...'
-                        // Add your staging deployment commands here
+                        // Staging deployment
+                        echo 'Deploying to staging...'
                         sh '''
-                            echo "Staging deployment commands would go here"
-                            # Examples:
-                            # pm2 restart myapp
-                            # rsync -av dist/ user@staging-server:/var/www/
+                            # Add your staging deployment commands here
+                            echo "Staging deployment would happen here"
+                            
+                            # Example commands (uncomment and modify as needed):
+                            # rsync -av dist/ user@staging-server:/var/www/html/
+                            # pm2 restart myapp-staging
                         '''
                     }
                 }
@@ -199,9 +223,11 @@ pipeline {
             post {
                 success {
                     echo "✅ Deployment successful to ${env.BRANCH_NAME} environment"
+                    // Send notifications (Slack, email, etc.)
                 }
                 failure {
-                    echo "❌ Deployment failed for ${env.BRANCH_NAME} environment"
+                    echo "❌ Deployment failed"
+                    // Send failure notifications
                 }
             }
         }
@@ -215,35 +241,32 @@ pipeline {
                 }
             }
             steps {
-                echo 'Performing post-deployment health check...'
+                echo 'Performing health check...'
                 script {
                     // Wait for application to start
                     sleep(time: 10, unit: 'SECONDS')
                     
-                    // Replace with your actual health check
-                    def healthCheckResult = sh(
+                    def healthResult = sh(
                         script: '''
-                            # Example health checks - replace with your actual endpoints
+                            # Replace with your actual health check endpoint
+                            # Example health check
                             echo "Performing health check..."
                             
-                            # HTTP endpoint check
-                            # curl -f http://your-app-url/health || exit 1
+                            # HTTP endpoint check (uncomment and modify as needed)
+                            # curl -f http://localhost:3000/health
                             
-                            # Process check
-                            # pgrep node || exit 1
-                            
-                            # For now, just simulate a successful health check
-                            echo "Health check passed"
+                            # For now, simulate a successful health check
+                            echo "Health check endpoint not configured yet"
                             exit 0
                         ''',
                         returnStatus: true
                     )
                     
-                    if (healthCheckResult == 0) {
-                        echo '✅ Health check passed'
-                    } else {
-                        echo '⚠️ Health check failed - application may not be ready'
+                    if (healthResult != 0) {
+                        echo "Health check failed"
                         currentBuild.result = 'UNSTABLE'
+                    } else {
+                        echo "✅ Health check passed"
                     }
                 }
             }
@@ -269,45 +292,40 @@ pipeline {
         
         success {
             echo '✅ Pipeline completed successfully!'
+            // Send success notifications
             script {
                 if (env.CHANGE_ID) {
-                    echo "Pull Request #${env.CHANGE_ID} build successful"
+                    // This is a PR build
+                    echo "PR #${env.CHANGE_ID} build successful"
                 } else {
-                    echo "Branch '${env.BRANCH_NAME}' build successful"
+                    // This is a branch build
+                    echo "Branch ${env.BRANCH_NAME} build successful"
                 }
             }
         }
         
         failure {
             echo '❌ Pipeline failed!'
+            // Send failure notifications
             script {
-                echo "Build failed for branch: ${env.BRANCH_NAME}"
-                echo "Commit: ${env.GIT_COMMIT}"
+                def failureReason = currentBuild.description ?: 'Unknown failure'
+                echo "Build failed: ${failureReason}"
                 
-                // Add notification logic here if needed
-                // Example: send email, Slack message, etc.
+                // You can add notification steps here
+                // emailext, slack, etc.
             }
         }
         
         unstable {
             echo '⚠️ Pipeline completed with warnings'
-            echo 'Some stages passed with issues - please review the logs'
         }
         
         cleanup {
-            echo 'Final cleanup completed'
+            // Final cleanup
+            cleanWs()
         }
     }
 }
-
-
-
-
-
-
-
-
-
 
 
 
