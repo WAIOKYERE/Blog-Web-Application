@@ -4,6 +4,7 @@ pipeline {
     environment {
         NODE_ENV = 'production'
         NPM_CONFIG_CACHE = '/tmp/.npm'
+        EMAIL_RECIPIENTS = 'waiokyere3@outlook.com'
         // Add other environment variables as needed
     }
     
@@ -292,6 +293,36 @@ pipeline {
                     archiveArtifacts artifacts: '*.log', allowEmptyArchive: true
                 }
             }
+            
+            // EMAIL NOTIFICATION - Always send email with build status
+            emailext (
+                subject: "Jenkins Pipeline: ${env.JOB_NAME} - Build #${env.BUILD_NUMBER} - ${currentBuild.result ?: 'SUCCESS'}",
+                body: """
+                <html>
+                <body>
+                    <h2>Jenkins Pipeline Notification</h2>
+                    <p><strong>Job:</strong> ${env.JOB_NAME}</p>
+                    <p><strong>Build Number:</strong> ${env.BUILD_NUMBER}</p>
+                    <p><strong>Status:</strong> ${currentBuild.result ?: 'SUCCESS'}</p>
+                    <p><strong>Branch:</strong> ${env.BRANCH_NAME ?: 'N/A'}</p>
+                    <p><strong>Duration:</strong> ${currentBuild.durationString}</p>
+                    <p><strong>Started by:</strong> ${currentBuild.getBuildCauses('hudson.model.Cause\$UserIdCause')[0]?.userId ?: 'System'}</p>
+                    
+                    <h3>Build Information:</h3>
+                    <p><strong>Build URL:</strong> <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
+                    <p><strong>Console Output:</strong> <a href="${env.BUILD_URL}console">View Console Output</a></p>
+                    
+                    ${currentBuild.result == 'FAILURE' ? '<p style="color: red;"><strong>Build Failed!</strong> Please check the console output for details.</p>' : ''}
+                    ${currentBuild.result == 'UNSTABLE' ? '<p style="color: orange;"><strong>Build Unstable!</strong> There were warnings or minor issues.</p>' : ''}
+                    ${(currentBuild.result == 'SUCCESS' || currentBuild.result == null) ? '<p style="color: green;"><strong>Build Successful!</strong></p>' : ''}
+                </body>
+                </html>
+                """,
+                mimeType: 'text/html',
+                to: "${env.EMAIL_RECIPIENTS}",
+                attachLog: true,
+                compressLog: true
+            )
         }
         
         success {
@@ -306,6 +337,22 @@ pipeline {
                     echo "Branch ${env.BRANCH_NAME} build successful"
                 }
             }
+            
+            // SUCCESS EMAIL - Additional success notification
+            emailext (
+                subject: "✅ SUCCESS: ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}",
+                body: """
+                🎉 Build completed successfully!
+                
+                Job: ${env.JOB_NAME}
+                Build: #${env.BUILD_NUMBER}
+                Branch: ${env.BRANCH_NAME ?: 'N/A'}
+                Duration: ${currentBuild.durationString}
+                
+                View build details: ${env.BUILD_URL}
+                """,
+                to: "${env.EMAIL_RECIPIENTS}"
+            )
         }
         
         failure {
@@ -314,14 +361,50 @@ pipeline {
             script {
                 def failureReason = currentBuild.description ?: 'Unknown failure'
                 echo "Build failed: ${failureReason}"
-                
-                // You can add notification steps here
-                // emailext, slack, etc.
             }
+            
+            // FAILURE EMAIL - Additional failure notification
+            emailext (
+                subject: "❌ FAILURE: ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}",
+                body: """
+                🚨 Build failed!
+                
+                Job: ${env.JOB_NAME}
+                Build: #${env.BUILD_NUMBER}
+                Branch: ${env.BRANCH_NAME ?: 'N/A'}
+                Duration: ${currentBuild.durationString}
+                
+                Please check the console output for details:
+                ${env.BUILD_URL}console
+                
+                View full build details: ${env.BUILD_URL}
+                """,
+                to: "${env.EMAIL_RECIPIENTS}",
+                attachLog: true
+            )
         }
         
         unstable {
             echo '⚠️ Pipeline completed with warnings'
+            
+            // UNSTABLE EMAIL - Additional unstable notification
+            emailext (
+                subject: "⚠️ UNSTABLE: ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}",
+                body: """
+                ⚠️ Build completed with warnings!
+                
+                Job: ${env.JOB_NAME}
+                Build: #${env.BUILD_NUMBER}
+                Branch: ${env.BRANCH_NAME ?: 'N/A'}
+                Duration: ${currentBuild.durationString}
+                
+                Please review the warnings:
+                ${env.BUILD_URL}
+                
+                Console output: ${env.BUILD_URL}console
+                """,
+                to: "${env.EMAIL_RECIPIENTS}"
+            )
         }
         
         cleanup {
@@ -346,7 +429,7 @@ pipeline {
 
 
 
-// pipeline {
+// ipeline {
 //     agent any
     
 //     environment {
@@ -364,28 +447,6 @@ pipeline {
 
 //     stages {
 //         stage('Checkout & Setup') {
-
-
-//     //    //Added this part
-//     //         stages {
-//     //     stage('Install & Build') {
-//     //         agent {
-//     //             docker {
-//     //                 image 'node:18'
-//     //             }
-//     //         }
-//     //         steps {
-//     //             sh 'node --version'
-//     //             sh 'npm install'
-//     //             sh 'npm run build'
-//     //         }
-//     //     }
-//     // }
-//     //        //Added this part
-
-
-
-
 //             steps {
 //                 echo 'Setting up workspace...'
 //                 // Clean workspace if needed
@@ -431,11 +492,9 @@ pipeline {
 //                     steps {
 //                         echo 'Running linter...'
 //                         script {
-//                             try {
-//                                 sh 'npm run lint || echo "Lint script not found, skipping..."'
-//                             } catch (Exception e) {
-//                                 echo "Linting failed: ${e.getMessage()}"
-//                                 currentBuild.result = 'UNSTABLE'
+//                             def result = sh(script: 'npm run lint', returnStatus: true)
+//                             if (result != 0) {
+//                                 echo "Lint script not found or failed, skipping..."
 //                             }
 //                         }
 //                     }
@@ -445,13 +504,9 @@ pipeline {
 //                     steps {
 //                         echo 'Running security audit...'
 //                         script {
-//                             try {
-//                                 sh '''
-//                                     npm audit --audit-level=high
-//                                     # Alternative: npx audit-ci --moderate
-//                                 '''
-//                             } catch (Exception e) {
-//                                 echo "Security audit found issues: ${e.getMessage()}"
+//                             def result = sh(script: 'npm audit --audit-level=moderate', returnStatus: true)
+//                             if (result != 0) {
+//                                 echo "Security audit found issues. Consider running 'npm audit fix'"
 //                                 currentBuild.result = 'UNSTABLE'
 //                             }
 //                         }
@@ -461,21 +516,26 @@ pipeline {
 //         }
 
 //         stage('Build') {
-//             when {
-//                 // Only build if there's a build script
-//                 expression { 
-//                     def packageJson = readJSON file: 'package.json'
-//                     return packageJson.scripts?.build != null
-//                 }
-//             }
 //             steps {
-//                 echo 'Building application...'
-//                 sh 'npm run build'
-//             }
-//             post {
-//                 success {
-//                     // Archive build artifacts
-//                     archiveArtifacts artifacts: 'dist/**/*', allowEmptyArchive: true
+//                 echo 'Checking for build script...'
+//                 script {
+//                     // Fixed: Use shell command instead of readJSON to check for build script
+//                     def buildScriptExists = sh(
+//                         script: 'npm run | grep -q "^  build"',
+//                         returnStatus: true
+//                     ) == 0
+                    
+//                     if (buildScriptExists) {
+//                         echo 'Building application...'
+//                         sh 'npm run build'
+                        
+//                         // Archive build artifacts if they exist
+//                         if (fileExists('dist') || fileExists('build')) {
+//                             archiveArtifacts artifacts: 'dist/**/*,build/**/*', allowEmptyArchive: true
+//                         }
+//                     } else {
+//                         echo 'No build script found in package.json, skipping build'
+//                     }
 //                 }
 //             }
 //         }
@@ -484,22 +544,29 @@ pipeline {
 //             steps {
 //                 echo 'Running tests...'
 //                 script {
-//                     try {
-//                         sh '''
-//                             # Run tests with coverage if available
-//                             if npm run | grep -q "test:coverage"; then
-//                                 npm run test:coverage
-//                             elif npm run | grep -q "test"; then
+//                     // First check what the test script contains
+//                     def packageContent = readFile('package.json')
+                    
+//                     // Check if it's the default npm test script that always fails
+//                     if (packageContent.contains('"test": "echo \\"Error: no test specified\\" && exit 1"')) {
+//                         echo "Default npm test script detected (no actual tests configured), skipping tests..."
+//                     } else {
+//                         // There are real tests configured, so run them
+//                         def testResult = sh(
+//                             script: '''
+//                                 # Run the actual test command
 //                                 npm run test
-//                             else
-//                                 echo "No test scripts configured"
-//                                 exit 0
-//                             fi
-//                         '''
-//                     } catch (Exception e) {
-//                         echo "Tests failed: ${e.getMessage()}"
-//                         currentBuild.result = 'FAILURE'
-//                         error "Test stage failed"
+//                             ''',
+//                             returnStatus: true
+//                         )
+                        
+//                         if (testResult != 0) {
+//                             echo "Tests failed with exit code: ${testResult}"
+//                             currentBuild.result = 'FAILURE'
+//                             error "Test stage failed"
+//                         } else {
+//                             echo "All tests passed successfully!"
+//                         }
 //                     }
 //                 }
 //             }
@@ -507,20 +574,33 @@ pipeline {
 //                 always {
 //                     // Publish test results if they exist
 //                     script {
+//                         // Check for coverage reports
 //                         if (fileExists('coverage/lcov.info')) {
-//                             publishHTML([
-//                                 allowMissing: false,
-//                                 alwaysLinkToLastBuild: true,
-//                                 keepAll: true,
-//                                 reportDir: 'coverage',
-//                                 reportFiles: 'index.html',
-//                                 reportName: 'Coverage Report'
-//                             ])
+//                             echo 'Coverage report found'
+//                             // Only use publishHTML if the plugin is available
+//                             try {
+//                                 publishHTML([
+//                                     allowMissing: false,
+//                                     alwaysLinkToLastBuild: true,
+//                                     keepAll: true,
+//                                     reportDir: 'coverage',
+//                                     reportFiles: 'index.html',
+//                                     reportName: 'Coverage Report'
+//                                 ])
+//                             } catch (Exception e) {
+//                                 echo "HTML Publisher not available: ${e.getMessage()}"
+//                                 archiveArtifacts artifacts: 'coverage/**/*', allowEmptyArchive: true
+//                             }
 //                         }
                         
 //                         // JUnit test results
 //                         if (fileExists('test-results.xml')) {
-//                             junit 'test-results.xml'
+//                             try {
+//                                 junit 'test-results.xml'
+//                             } catch (Exception e) {
+//                                 echo "JUnit plugin not available: ${e.getMessage()}"
+//                                 archiveArtifacts artifacts: 'test-results.xml', allowEmptyArchive: true
+//                             }
 //                         }
 //                     }
 //                 }
@@ -555,6 +635,11 @@ pipeline {
 //                             # Add your production deployment commands here
 //                             # For example: docker build, push to registry, deploy to k8s
 //                             echo "Production deployment would happen here"
+                            
+//                             # Example commands (uncomment and modify as needed):
+//                             # docker build -t myapp:$(git rev-parse --short HEAD) .
+//                             # docker tag myapp:$(git rev-parse --short HEAD) myapp:latest
+//                             # docker push myregistry/myapp:latest
 //                         '''
 //                     } else if (env.BRANCH_NAME == 'develop') {
 //                         // Staging deployment
@@ -562,6 +647,10 @@ pipeline {
 //                         sh '''
 //                             # Add your staging deployment commands here
 //                             echo "Staging deployment would happen here"
+                            
+//                             # Example commands (uncomment and modify as needed):
+//                             # rsync -av dist/ user@staging-server:/var/www/html/
+//                             # pm2 restart myapp-staging
 //                         '''
 //                     }
 //                 }
@@ -592,15 +681,27 @@ pipeline {
 //                     // Wait for application to start
 //                     sleep(time: 10, unit: 'SECONDS')
                     
-//                     try {
-//                         // Replace with your actual health check endpoint
-//                         sh '''
+//                     def healthResult = sh(
+//                         script: '''
+//                             # Replace with your actual health check endpoint
 //                             # Example health check
-//                             curl -f http://localhost:3000/health || echo "Health check endpoint not available"
-//                         '''
-//                     } catch (Exception e) {
-//                         echo "Health check failed: ${e.getMessage()}"
+//                             echo "Performing health check..."
+                            
+//                             # HTTP endpoint check (uncomment and modify as needed)
+//                             # curl -f http://localhost:3000/health
+                            
+//                             # For now, simulate a successful health check
+//                             echo "Health check endpoint not configured yet"
+//                             exit 0
+//                         ''',
+//                         returnStatus: true
+//                     )
+                    
+//                     if (healthResult != 0) {
+//                         echo "Health check failed"
 //                         currentBuild.result = 'UNSTABLE'
+//                     } else {
+//                         echo "✅ Health check passed"
 //                     }
 //                 }
 //             }
@@ -612,12 +713,16 @@ pipeline {
 //             echo 'Cleaning up...'
 //             // Clean up temporary files
 //             sh '''
-//                 rm -rf node_modules/.cache
-//                 rm -rf /tmp/.npm
+//                 rm -rf node_modules/.cache || true
+//                 rm -rf /tmp/.npm || true
 //             '''
             
-//             // Archive logs
-//             archiveArtifacts artifacts: '*.log', allowEmptyArchive: true
+//             // Archive logs if they exist
+//             script {
+//                 if (fileExists('*.log')) {
+//                     archiveArtifacts artifacts: '*.log', allowEmptyArchive: true
+//                 }
+//             }
 //         }
         
 //         success {
@@ -662,277 +767,3 @@ pipeline {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// pipeline {
-//     agent any
-
-//     stages {
-//         stage('Build') {
-//             steps {
-//                 sh 'npm install'  // Install dependencies
-//                 sh 'npm run build' // If you have a build step
-//             }
-//         }
-
-
-//         stage('Test') {
-//             steps {
-//                 echo 'Testing...'
-//             }
-//         }
-
-//         stage('Deploy') {
-//             steps {
-                
-//                 echo 'Deploying...'
-//             }
-//         }
-//     }
-
-
-//     post {
-//         always {
-//             echo 'Cleaning up...'
-//         }
-//         success {
-//             echo 'Build succeeded!'
-//         }
-//         failure {
-//             echo 'Build failed!'
-//         }
-//     }
-// }
-
-
-
-
-
-
-// pipeline {
-//     agent any
-
-//     stages {
-//         stage('Install') {
-//             steps {
-//                 echo 'Installing dependencies...'
-//                 sh 'npm install'
-//             }
-//         }
-
-//         stage('Test') {
-//             steps {
-//                 echo 'Running tests...'
-//                 sh 'npm test || echo "No tests configured"'
-//             }
-//         }
-
-//         stage('Deploy') {
-//             steps {
-//                 echo 'Starting application...'
-//                 sh 'npm start'
-//             }
-//         }
-//     }
-
-//     post {
-//         always {
-//             echo 'Cleaning up...'
-//         }
-//         success {
-//             echo 'Pipeline completed successfully!'
-//         }
-//         failure {
-//             echo 'Pipeline failed!'
-//         }
-//     }
-// }
-
-
-
-
-
-
-
-
-// pipeline {
-//     agent {
-//         docker {
-//             image 'node:18-alpine'
-//             args '--network host -v /var/run/docker.sock:/var/run/docker.sock'
-//         }
-//     }
-//     environment {
-//         DOCKER_REGISTRY = 'your-registry'
-//         APP_NAME = 'blog-web-app'
-//         VERSION = "${env.BUILD_NUMBER}"
-//     }
-//     stages {
-        
-//         stage('Install Dependencies') {
-//             steps {
-//                 sh 'npm ci'
-//             }
-//         }
-        
-//         stage('Run Tests') {
-//             steps {
-//                 sh 'npm test'
-//             }
-//         }
-        
-//         stage('Build Docker Image') {
-//             steps {
-//                 script {
-//                     docker.build("${APP_NAME}:${VERSION}")
-//                 }
-//             }
-//         }
-        
-//         stage('Push to Registry') {
-//             when {
-//                 branch 'main'
-//             }
-//             steps {
-//                 script {
-//                     docker.withRegistry("https://${DOCKER_REGISTRY}", 'docker-hub-credentials') {
-//                         docker.image("${APP_NAME}:${VERSION}").push()
-//                     }
-//                 }
-//             }
-//         }
-        
-//         stage('Deploy') {
-//             when {
-//                 branch 'main'
-//             }
-//             steps {
-//                 sh """
-//                 docker-compose -f docker-compose.prod.yml down
-//                 docker-compose -f docker-compose.prod.yml up -d
-//                 """
-//             }
-//         }
-//     }
-// }
-
-
-
-
-
-
-
-// pipeline {
-//     agent {
-//         docker {
-//             image 'node:18-alpine'
-//             args '-v /var/run/docker.sock:/var/run/docker.sock'
-//         }
-//     }
-//     environment {
-//         DOCKER_REGISTRY = 'your-registry' // e.g., Docker Hub
-//         DOCKER_CREDENTIALS = credentials('docker-hub-credentials')
-//         APP_NAME = 'blog-web-app'
-//         VERSION = "${env.BUILD_NUMBER}"
-//     }
-//     stages {
-//         stage('Checkout') {
-//             steps {
-//                 checkout scm
-//             }
-//         }
-        
-//         stage('Install Dependencies') {
-//             steps {
-//                 sh 'npm install'
-//             }
-//         }
-        
-//         stage('Run Tests') {
-//             steps {
-//                 sh 'npm test'
-//             }
-//         }
-        
-//         stage('Build Docker Image') {
-//             steps {
-//                 script {
-//                     docker.build("${APP_NAME}:${VERSION}")
-//                 }
-//             }
-//         }
-        
-//         stage('Run Security Scan') {
-//             steps {
-//                 sh 'docker scan --file Dockerfile ${APP_NAME}:${VERSION}'
-//             }
-//         }
-        
-//         stage('Push to Registry') {
-//             when {
-//                 branch 'main'
-//             }
-//             steps {
-//                 script {
-//                     docker.withRegistry("https://${DOCKER_REGISTRY}", "${DOCKER_CREDENTIALS}") {
-//                         docker.image("${APP_NAME}:${VERSION}").push()
-//                         docker.image("${APP_NAME}:${VERSION}").push('latest')
-//                     }
-//                 }
-//             }
-//         }
-        
-//         stage('Deploy') {
-//             when {
-//                 branch 'main'
-//             }
-//             steps {
-//                 sshagent(['deploy-server-credentials']) {
-//                     sh """
-//                     ssh user@your-server << EOF
-//                     docker pull ${DOCKER_REGISTRY}/${APP_NAME}:${VERSION}
-//                     docker stop \$(docker ps -q --filter ancestor=${APP_NAME}) || true
-//                     docker run -d -p 6000:5000 --name ${APP_NAME}-${VERSION} ${APP_NAME}:${VERSION}
-//                     EOF
-//                     """
-//                 }
-//             }
-//         }
-//     }
-//     post {
-//         always {
-//             cleanWs()
-//         }
-//         failure {
-//             slackSend channel: '#devops', message: "Build ${currentBuild.fullDisplayName} failed!"
-//         }
-//         success {
-//             slackSend channel: '#devops', message: "Build ${currentBuild.fullDisplayName} succeeded!"
-//         }
-//     }
-// }
