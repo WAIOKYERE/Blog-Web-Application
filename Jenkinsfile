@@ -4,7 +4,7 @@ pipeline {
     environment {
         NODE_ENV = 'production'
         NPM_CONFIG_CACHE = '/tmp/.npm'
-        EMAIL_RECIPIENTS = 'waiokyere3@outlook.com'
+        EMAIL_RECIPIENTS = 'okyerewai3@gmail.com'
         // Add other environment variables as needed
     }
     
